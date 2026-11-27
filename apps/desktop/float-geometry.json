@@ -1,0 +1,21 @@
+{
+  "minWidth": 180,
+  "minHeight": 120,
+  "headZoneHeight": 48,
+  "palette": {
+    "text": [
+      { "v": "", "label": "跟随主题" },
+      { "v": "#e8dcc8", "label": "暖白" },
+      { "v": "#a8c7a1", "label": "豆绿" },
+      { "v": "#9ecbff", "label": "天蓝" },
+      { "v": "#f2f2f2", "label": "纯白" }
+    ],
+    "bg": [
+      { "v": "", "label": "跟随主题" },
+      { "v": "#0d0f13", "label": "墨黑" },
+      { "v": "#1f2126", "label": "石墨" },
+      { "v": "#151b26", "label": "藏青" },
+      { "v": "#f2e8d5", "label": "米黄" }
+    ]
+  }
+}

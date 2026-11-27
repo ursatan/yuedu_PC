@@ -1,0 +1,25 @@
+{
+  "name": "@yuedu/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.0.0",
+    "@yuedu/core": "workspace:*",
+    "@yuedu/facade": "workspace:*",
+    "@yuedu/engine-legado": "workspace:*",
+    "@yuedu/engine-maccms": "workspace:*",
+    "@yuedu/engine-rss": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "@types/node": "^22.15.0"
+  }
+}

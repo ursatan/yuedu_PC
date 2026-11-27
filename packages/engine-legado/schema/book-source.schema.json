@@ -1,0 +1,480 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enginehub.dev/schema/legado/book-source.schema.json",
+  "title": "Legado BookSource",
+  "description": "Legado 书源完整数据模型（117 字段）。逐字段对齐 LegadoTeam/legado @3.26082823 的 data class 主构造器，未凭印象推断。字段类型、默认值、旧版别名均取自源码。",
+  "x-legado-version": "3.26082823",
+  "x-legado-source": {
+    "BookSource": "app/src/main/java/io/legado/app/data/entities/BookSource.kt",
+    "SearchRule": "app/src/main/java/io/legado/app/data/entities/rule/SearchRule.kt",
+    "ExploreRule": "app/src/main/java/io/legado/app/data/entities/rule/ExploreRule.kt",
+    "BookInfoRule": "app/src/main/java/io/legado/app/data/entities/rule/BookInfoRule.kt",
+    "TocRule": "app/src/main/java/io/legado/app/data/entities/rule/TocRule.kt",
+    "ContentRule": "app/src/main/java/io/legado/app/data/entities/rule/ContentRule.kt",
+    "ReviewRule": "app/src/main/java/io/legado/app/data/entities/rule/ReviewRule.kt",
+    "legacyMap": "app/src/main/java/io/legado/app/help/storage/ImportOldData.kt",
+    "editUI": "app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditActivity.kt"
+  },
+  "type": "object",
+  "required": ["bookSourceUrl", "bookSourceName"],
+  "additionalProperties": true,
+  "x-unknown-fields": "宽松保留。Legado 官方导入亦忽略未知字段；一期要求「无缝导入」，故不设 additionalProperties:false。未知字段在往返（导入→编辑→导出）中原样保留，不丢弃。",
+
+  "properties": {
+    "bookSourceUrl": {
+      "type": "string",
+      "title": "源地址",
+      "description": "含 http/https。Legado 中为主键 @PrimaryKey，变更等于删源重建（BookSourceEditViewModel.save L62-70）。也是本引擎的源唯一标识，必须与之保持一致，否则书源共享（订阅/拷贝/二维码）失效。",
+      "x-legado-kotlin": "String = \"\"",
+      "x-ui-tab": 0,
+      "x-ui-widget": "text"
+    },
+    "bookSourceName": {
+      "type": "string",
+      "title": "源名称",
+      "description": "与 bookSourceUrl 同为必填。Legado save() 中二者任一为空即抛 NoStackTraceException(non_null_name_url)。",
+      "x-legado-kotlin": "String = \"\"",
+      "x-ui-tab": 0,
+      "x-ui-widget": "text"
+    },
+    "bookSourceGroup": {
+      "$ref": "#/$defs/nullableString",
+      "title": "分组",
+      "description": "逗号或 AppPattern.splitGroupRegex 分隔。含「失效」或等于「校验超时」的分组会被 getInvalidGroupNames() 自动移除。",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "text"
+    },
+    "bookSourceType": {
+      "type": "integer",
+      "title": "源类型",
+      "description": "0 文本 / 1 音频 / 2 图片（漫画）/ 3 文件（仅提供下载）/ 4 视频。取自 constant/BookSourceType.kt。Legado 自身支持视频源，是四引擎数据模型统一的基础。",
+      "enum": [0, 1, 2, 3, 4],
+      "default": 0,
+      "x-legado-kotlin": "Int = 0",
+      "x-legado-annotation": "@BookSourceType.Type",
+      "x-ui-tab": null,
+      "x-ui-widget": "spinner",
+      "x-ui-control": "顶部设置面板 Spinner",
+      "x-legacy-alias": "bookSourceType",
+      "x-legacy-convert": "legacyTypeFromString",
+      "x-legacy-note": "旧版为字符串，仅 'AUDIO' 映射为 1，其余一律 0（ImportOldData.fromOldBookSource L197-198）"
+    },
+    "bookUrlPattern": {
+      "$ref": "#/$defs/nullableString",
+      "title": "详情页 URL 正则",
+      "description": "用于判定某 URL 是否属于本书源，影响换源搜索。",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "text",
+      "x-legacy-alias": "ruleBookUrlPattern"
+    },
+    "customOrder": {
+      "type": "integer",
+      "title": "手动排序编号",
+      "description": "Legado 编辑界面无入口，仅能通过旧版导入或数据库写入。",
+      "default": 0,
+      "x-legado-kotlin": "Int = 0",
+      "x-legado-db-default": "0",
+      "x-ui-tab": null,
+      "x-ui-visible": false,
+      "x-legacy-alias": "serialNumber"
+    },
+    "enabled": {
+      "type": "boolean",
+      "title": "启用",
+      "default": true,
+      "x-legado-kotlin": "Boolean = true",
+      "x-legado-db-default": "1",
+      "x-ui-tab": null,
+      "x-ui-widget": "checkbox",
+      "x-ui-control": "顶部设置面板",
+      "x-legacy-alias": "enable",
+      "x-legacy-note": "旧版字段名不同（enable），缺失时旧版转换默认 true"
+    },
+    "enabledExplore": {
+      "type": "boolean",
+      "title": "启用发现",
+      "default": true,
+      "x-legado-kotlin": "Boolean = true",
+      "x-legado-db-default": "1",
+      "x-ui-tab": null,
+      "x-ui-widget": "checkbox",
+      "x-ui-control": "顶部设置面板",
+      "x-legacy-note": "旧版导入时，若 exploreUrl 为空则自动置 false（ImportOldData L199-201）"
+    },
+    "jsLib": {
+      "$ref": "#/$defs/nullableString",
+      "title": "JS 库",
+      "description": "共享 JS 代码，挂到所有 eval 的共享原型上。变更时 Legado 会 SharedJsScope.remove(oldJsLib) 清缓存。",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "code"
+    },
+    "enabledCookieJar": {
+      "type": ["boolean", "null"],
+      "title": "启用 CookieJar",
+      "description": "⚠️ 默认值自相矛盾：Kotlin 默认 true，Room @ColumnInfo(defaultValue=\"0\") 为 false。内存 new BookSource() 得 true，空 DB 行读出得 false。导入时该字段缺失应保留 null，禁止补默认值。",
+      "default": null,
+      "x-legado-kotlin": "Boolean? = true",
+      "x-legado-db-default": "0",
+      "x-legado-conflict": "Kotlin 默认 true ≠ DB 默认 false",
+      "x-ui-tab": null,
+      "x-ui-widget": "checkbox",
+      "x-ui-control": "顶部设置面板"
+    },
+    "concurrentRate": {
+      "$ref": "#/$defs/nullableString",
+      "title": "并发率",
+      "description": "如 \"1/1000\" 表示 1000ms 内最多 1 次请求。",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "text"
+    },
+    "header": {
+      "$ref": "#/$defs/nullableString",
+      "title": "请求头",
+      "description": "JSON 字符串；整体匹配 JS_PATTERN 时会被 eval 求值（BaseSource.getHeaderMap），解析失败静默降级并补默认 UA。",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "code",
+      "x-legacy-alias": "httpUserAgent",
+      "x-legacy-convert": "uaToHeader",
+      "x-legacy-note": "旧版是裸 UA 字符串，需包成 {\"User-Agent\":\"...\"} JSON"
+    },
+    "loginUrl": {
+      "$ref": "#/$defs/nullableString",
+      "title": "登录地址",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "text"
+    },
+    "loginUi": {
+      "$ref": "#/$defs/nullableString",
+      "title": "登录 UI",
+      "description": "JSON 数组字符串，每项必须含 name，否则 normalize 时抛错。",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "code"
+    },
+    "loginCheckJs": {
+      "$ref": "#/$defs/nullableString",
+      "title": "登录检测 JS",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "code"
+    },
+    "coverDecodeJs": {
+      "$ref": "#/$defs/nullableString",
+      "title": "封面解密 JS",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "code"
+    },
+    "bookSourceComment": {
+      "$ref": "#/$defs/nullableString",
+      "title": "注释",
+      "description": "⚠️ 错误信息也写在这里：addErrorComment() 追加 '// Error: xxx' 前缀段落（\\n\\n 分隔），removeErrorComment() 按此剔除。批量校验的失败原因落点。",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "text"
+    },
+    "variableComment": {
+      "$ref": "#/$defs/nullableString",
+      "title": "自定义变量说明",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 0,
+      "x-ui-widget": "text"
+    },
+    "lastUpdateTime": {
+      "type": "integer",
+      "title": "最后更新时间",
+      "description": "毫秒时间戳，用于排序。⚠️ 由 ViewModel.save() 自动维护：仅当内容有变化（!source.equal(oldSource)）时设为当前时间。导出建议携带以保留元信息，导入建议覆盖为最新。",
+      "default": 0,
+      "x-legado-kotlin": "Long = 0",
+      "x-ui-tab": null,
+      "x-ui-visible": false,
+      "x-runtime-managed": "由 save() 自动写入"
+    },
+    "respondTime": {
+      "type": "integer",
+      "title": "响应时间",
+      "description": "毫秒，源健康度排名依据。Debug.getRespondTime 统计得出。",
+      "default": 180000,
+      "x-legado-kotlin": "Long = 180000L",
+      "x-ui-tab": null,
+      "x-ui-visible": false
+    },
+    "weight": {
+      "type": "integer",
+      "title": "智能排序权重",
+      "default": 0,
+      "x-legado-kotlin": "Int = 0",
+      "x-ui-tab": null,
+      "x-ui-visible": false,
+      "x-excluded-from-equal": "不参与导入去重判重（BookSource.equal 已排除）"
+    },
+    "exploreUrl": {
+      "$ref": "#/$defs/nullableString",
+      "title": "发现 URL",
+      "description": "数组但序列化为 JSON 字符串；每项必须含 title。可含多行（换行分隔多个发现分类）。",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 2,
+      "x-ui-widget": "code",
+      "x-legacy-alias": "ruleFindUrl",
+      "x-legacy-convert": "toNewUrls"
+    },
+    "exploreScreen": {
+      "$ref": "#/$defs/nullableString",
+      "title": "发现筛选规则",
+      "description": "运行时生成，Legado 编辑界面无入口。",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": null,
+      "x-ui-visible": false
+    },
+    "ruleExplore": { "$ref": "#/$defs/ExploreRule" },
+    "searchUrl": {
+      "$ref": "#/$defs/nullableString",
+      "title": "搜索 URL",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": 1,
+      "x-ui-widget": "code",
+      "x-legacy-alias": "ruleSearchUrl",
+      "x-legacy-convert": "toNewUrl"
+    },
+    "ruleSearch": { "$ref": "#/$defs/SearchRule" },
+    "ruleBookInfo": { "$ref": "#/$defs/BookInfoRule" },
+    "ruleToc": { "$ref": "#/$defs/TocRule" },
+    "ruleContent": { "$ref": "#/$defs/ContentRule" },
+    "ruleReview": { "$ref": "#/$defs/ReviewRule" },
+    "mainJs": {
+      "$ref": "#/$defs/nullableString",
+      "title": "JS 书源主脚本",
+      "description": "非空即视为 JS 书源（isJsSource()），走 JsSourceEditActivity 独立编辑页，不在 86 个编辑框内。一期不做，仅占位。",
+      "x-legado-kotlin": "String? = null",
+      "x-ui-tab": null,
+      "x-ui-visible": false,
+      "x-phase": "一期占位，不做"
+    },
+    "eventListener": {
+      "type": "boolean",
+      "title": "监听事件",
+      "description": "是否监听事件来执行回调规则。",
+      "default": false,
+      "x-legado-kotlin": "Boolean = false",
+      "x-legado-db-default": "0",
+      "x-ui-tab": null,
+      "x-ui-widget": "checkbox",
+      "x-ui-control": "顶部设置面板"
+    },
+    "customButton": {
+      "type": "boolean",
+      "title": "定制按钮",
+      "description": "由书源控制的自定义按钮。",
+      "default": false,
+      "x-legado-kotlin": "Boolean = false",
+      "x-legado-db-default": "0",
+      "x-ui-tab": null,
+      "x-ui-widget": "checkbox",
+      "x-ui-control": "顶部设置面板"
+    }
+  },
+
+  "$defs": {
+    "nullableString": {
+      "type": ["string", "null"],
+      "default": null
+    },
+    "ruleString": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "规则字符串。语法见 AnalyzeRule.kt：无前缀=Jsoup简写 / @CSS: / @XPath: / @Json: / $.自动JSON / /自动XPath；## 三段清洗；&& || %% 三组合符。"
+    },
+
+    "SearchRule": {
+      "type": ["object", "null"],
+      "title": "搜索规则",
+      "description": "11 字段。UI 暴露 10 个（updateTime 无编辑框）。反序列化同时接受 JSON 对象与 JSON 字符串两种形态。",
+      "default": null,
+      "additionalProperties": true,
+      "x-ui-tab": 1,
+      "properties": {
+        "checkKeyWord": {
+          "$ref": "#/$defs/ruleString",
+          "title": "校验关键词",
+          "description": "getCheckKeyword() 取此值，过滤含 http/::/++/-- 的值，否则回退默认词。",
+          "x-legacy-alias": null
+        },
+        "bookList": { "$ref": "#/$defs/ruleString", "title": "列表规则", "x-legacy-alias": "ruleSearchList", "x-legacy-convert": "toNewRule" },
+        "name": { "$ref": "#/$defs/ruleString", "title": "书名规则", "x-legacy-alias": "ruleSearchName", "x-legacy-convert": "toNewRule" },
+        "author": { "$ref": "#/$defs/ruleString", "title": "作者规则", "x-legacy-alias": "ruleSearchAuthor", "x-legacy-convert": "toNewRule" },
+        "intro": { "$ref": "#/$defs/ruleString", "title": "简介规则", "x-legacy-alias": "ruleSearchIntroduce", "x-legacy-convert": "toNewRule" },
+        "kind": { "$ref": "#/$defs/ruleString", "title": "分类规则", "x-legacy-alias": "ruleSearchKind", "x-legacy-convert": "toNewRule" },
+        "lastChapter": { "$ref": "#/$defs/ruleString", "title": "最新章节规则", "x-legacy-alias": "ruleSearchLastChapter", "x-legacy-convert": "toNewRule" },
+        "updateTime": { "$ref": "#/$defs/ruleString", "title": "更新时间规则", "x-ui-visible": false, "x-ui-note": "Legado 无编辑框；在 Legado UI 保存一次会被静默清空（getSource() 用全新 SearchRule 整体替换）" },
+        "bookUrl": { "$ref": "#/$defs/ruleString", "title": "详情页 URL 规则", "x-legacy-alias": "ruleSearchNoteUrl", "x-legacy-convert": "toNewRule" },
+        "coverUrl": { "$ref": "#/$defs/ruleString", "title": "封面规则", "x-legacy-alias": "ruleSearchCoverUrl", "x-legacy-convert": "toNewRule" },
+        "wordCount": { "$ref": "#/$defs/ruleString", "title": "字数规则" }
+      }
+    },
+
+    "ExploreRule": {
+      "type": ["object", "null"],
+      "title": "发现规则",
+      "description": "10 字段。UI 暴露 9 个（updateTime 无编辑框）。注意没有 checkKeyWord，这是与 SearchRule 的唯一结构差异。",
+      "default": null,
+      "additionalProperties": true,
+      "x-ui-tab": 2,
+      "properties": {
+        "bookList": { "$ref": "#/$defs/ruleString", "title": "列表规则", "x-legacy-alias": "ruleFindList", "x-legacy-convert": "toNewRule" },
+        "name": { "$ref": "#/$defs/ruleString", "title": "书名规则", "x-legacy-alias": "ruleFindName", "x-legacy-convert": "toNewRule" },
+        "author": { "$ref": "#/$defs/ruleString", "title": "作者规则", "x-legacy-alias": "ruleFindAuthor", "x-legacy-convert": "toNewRule" },
+        "intro": { "$ref": "#/$defs/ruleString", "title": "简介规则", "x-legacy-alias": "ruleFindIntroduce", "x-legacy-convert": "toNewRule" },
+        "kind": { "$ref": "#/$defs/ruleString", "title": "分类规则", "x-legacy-alias": "ruleFindKind", "x-legacy-convert": "toNewRule" },
+        "lastChapter": { "$ref": "#/$defs/ruleString", "title": "最新章节规则", "x-legacy-alias": "ruleFindLastChapter", "x-legacy-convert": "toNewRule" },
+        "updateTime": { "$ref": "#/$defs/ruleString", "title": "更新时间规则", "x-ui-visible": false },
+        "bookUrl": { "$ref": "#/$defs/ruleString", "title": "详情页 URL 规则", "x-legacy-alias": "ruleFindNoteUrl", "x-legacy-convert": "toNewRule" },
+        "coverUrl": { "$ref": "#/$defs/ruleString", "title": "封面规则", "x-legacy-alias": "ruleFindCoverUrl", "x-legacy-convert": "toNewRule" },
+        "wordCount": { "$ref": "#/$defs/ruleString", "title": "字数规则" }
+      }
+    },
+
+    "BookInfoRule": {
+      "type": ["object", "null"],
+      "title": "详情页规则",
+      "description": "12 字段。UI 暴露 11 个（updateTime 无编辑框）。",
+      "default": null,
+      "additionalProperties": true,
+      "x-ui-tab": 3,
+      "properties": {
+        "init": { "$ref": "#/$defs/ruleString", "title": "初始化规则", "description": "进入详情页先执行，可 @put: 变量供后续字段使用。", "x-legacy-alias": "ruleBookInfoInit", "x-legacy-convert": "toNewRule" },
+        "name": { "$ref": "#/$defs/ruleString", "title": "书名规则", "x-legacy-alias": "ruleBookName", "x-legacy-convert": "toNewRule" },
+        "author": { "$ref": "#/$defs/ruleString", "title": "作者规则", "x-legacy-alias": "ruleBookAuthor", "x-legacy-convert": "toNewRule" },
+        "intro": { "$ref": "#/$defs/ruleString", "title": "简介规则", "x-legacy-alias": "ruleIntroduce", "x-legacy-convert": "toNewRule" },
+        "kind": { "$ref": "#/$defs/ruleString", "title": "分类规则", "x-legacy-alias": "ruleBookKind", "x-legacy-convert": "toNewRule" },
+        "lastChapter": { "$ref": "#/$defs/ruleString", "title": "最新章节规则", "x-legacy-alias": "ruleBookLastChapter", "x-legacy-convert": "toNewRule" },
+        "updateTime": { "$ref": "#/$defs/ruleString", "title": "更新时间规则", "x-ui-visible": false },
+        "coverUrl": { "$ref": "#/$defs/ruleString", "title": "封面规则", "x-legacy-alias": "ruleCoverUrl", "x-legacy-convert": "toNewRule" },
+        "tocUrl": { "$ref": "#/$defs/ruleString", "title": "目录页 URL 规则", "x-legacy-alias": "ruleChapterUrl", "x-legacy-convert": "toNewRule" },
+        "wordCount": { "$ref": "#/$defs/ruleString", "title": "字数规则" },
+        "canReName": { "$ref": "#/$defs/ruleString", "title": "可重命名规则" },
+        "downloadUrls": { "$ref": "#/$defs/ruleString", "title": "下载地址规则", "description": "仅 bookSourceType=3（文件）有效。" }
+      }
+    },
+
+    "TocRule": {
+      "type": ["object", "null"],
+      "title": "目录页规则",
+      "description": "10 字段，UI 全部暴露。",
+      "default": null,
+      "additionalProperties": true,
+      "x-ui-tab": 4,
+      "properties": {
+        "preUpdateJs": { "$ref": "#/$defs/ruleString", "title": "目录更新前 JS" },
+        "chapterList": { "$ref": "#/$defs/ruleString", "title": "章节列表规则", "x-legacy-alias": "ruleChapterList", "x-legacy-convert": "toNewRule" },
+        "chapterName": { "$ref": "#/$defs/ruleString", "title": "章节名称规则", "x-legacy-alias": "ruleChapterName", "x-legacy-convert": "toNewRule" },
+        "chapterUrl": { "$ref": "#/$defs/ruleString", "title": "章节 URL 规则", "x-legacy-alias": "ruleContentUrl", "x-legacy-convert": "toNewRule", "x-legacy-note": "旧版 ruleContentUrl 映射到 TocRule.chapterUrl，命名易混淆，勿误配到 ContentRule" },
+        "formatJs": { "$ref": "#/$defs/ruleString", "title": "目录格式化 JS" },
+        "isVolume": { "$ref": "#/$defs/ruleString", "title": "分卷规则" },
+        "isVip": { "$ref": "#/$defs/ruleString", "title": "VIP 章节规则" },
+        "isPay": { "$ref": "#/$defs/ruleString", "title": "付费章节规则" },
+        "updateTime": { "$ref": "#/$defs/ruleString", "title": "更新时间规则" },
+        "nextTocUrl": { "$ref": "#/$defs/ruleString", "title": "下一页目录规则", "description": "目录分页。", "x-legacy-alias": "ruleChapterUrlNext", "x-legacy-convert": "toNewRule" }
+      }
+    },
+
+    "ContentRule": {
+      "type": ["object", "null"],
+      "title": "正文页规则",
+      "description": "11 字段，UI 全部暴露。",
+      "default": null,
+      "additionalProperties": true,
+      "x-ui-tab": 5,
+      "properties": {
+        "content": {
+          "$ref": "#/$defs/ruleString",
+          "title": "正文规则",
+          "x-legacy-alias": "ruleBookContent",
+          "x-legacy-convert": "toNewRule+contentDollar",
+          "x-legacy-note": "旧版还需：若以 $ 开头且不以 $. 开头，去掉首字符 $（ImportOldData L234-237）"
+        },
+        "subContent": { "$ref": "#/$defs/ruleString", "title": "副文规则", "description": "拼接在正文后面，或用于获取歌词等。" },
+        "title": { "$ref": "#/$defs/ruleString", "title": "章节标题规则", "description": "有些网站只能在正文中获取标题。" },
+        "nextContentUrl": { "$ref": "#/$defs/ruleString", "title": "下一页正文规则", "x-legacy-alias": "ruleContentUrlNext", "x-legacy-convert": "toNewRule" },
+        "webJs": { "$ref": "#/$defs/ruleString", "title": "WebView JS" },
+        "sourceRegex": { "$ref": "#/$defs/ruleString", "title": "正文来源正则" },
+        "replaceRegex": { "$ref": "#/$defs/ruleString", "title": "替换规则", "x-legacy-alias": "ruleBookContentReplace", "x-legacy-convert": "toNewRule" },
+        "imageStyle": { "$ref": "#/$defs/ruleString", "title": "图片样式", "description": "默认大小居中，FULL 为最大宽度。" },
+        "imageDecode": { "$ref": "#/$defs/ruleString", "title": "图片解密 JS", "description": "图片 bytes 二次解密，返回解密后的 bytes。" },
+        "payAction": { "$ref": "#/$defs/ruleString", "title": "购买操作", "description": "JS 或包含 {{js}} 的 URL。" },
+        "callBackJs": { "$ref": "#/$defs/ruleString", "title": "回调 JS" }
+      }
+    },
+
+    "ReviewRule": {
+      "type": ["object", "null"],
+      "title": "段评规则",
+      "description": "30 字段，UI 仅暴露 20 个。结构为三段式：summary（段评汇总）/ detail（段评详情）/ reply（回复）。另有 10 个字段无编辑框。",
+      "default": null,
+      "additionalProperties": true,
+      "x-ui-tab": 6,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "title": "启用段评",
+          "default": false,
+          "description": "⚠️ 此开关在顶部设置面板作为一个独立 CheckBox（cbIsEnableReview），但数据上属于 ReviewRule 内部字段。",
+          "x-legado-kotlin": "Boolean = false",
+          "x-ui-tab": null,
+          "x-ui-widget": "checkbox",
+          "x-ui-control": "顶部设置面板",
+          "x-legacy-note": "Legado getSource() 对 ruleReview 用了 copy()（唯一保留未暴露字段的规则对象），段评字段不会因编辑而丢失"
+        },
+        "reviewSummaryUrl": { "$ref": "#/$defs/ruleString", "title": "段评汇总 URL" },
+        "summaryListRule": { "$ref": "#/$defs/ruleString", "title": "段评汇总列表规则" },
+        "summaryParagraphIndexRule": { "$ref": "#/$defs/ruleString", "title": "段评段落索引规则" },
+        "summaryParagraphDataRule": { "$ref": "#/$defs/ruleString", "title": "段评段落数据规则" },
+        "summaryCountRule": { "$ref": "#/$defs/ruleString", "title": "段评数量规则" },
+        "reviewDetailUrl": { "$ref": "#/$defs/ruleString", "title": "段评详情 URL" },
+        "reviewDetailNextPageUrl": { "$ref": "#/$defs/ruleString", "title": "段评详情下一页" },
+        "detailListRule": { "$ref": "#/$defs/ruleString", "title": "段评详情列表规则" },
+        "detailIdRule": { "$ref": "#/$defs/ruleString", "title": "段评 ID 规则" },
+        "detailAvatarRule": { "$ref": "#/$defs/ruleString", "title": "段评头像规则" },
+        "detailNameRule": { "$ref": "#/$defs/ruleString", "title": "段评发布者规则" },
+        "detailBadgeRule": { "$ref": "#/$defs/ruleString", "title": "段评徽章规则" },
+        "detailContentRule": { "$ref": "#/$defs/ruleString", "title": "段评内容规则" },
+        "reviewQuoteUrl": { "$ref": "#/$defs/ruleString", "title": "段评引用 URL", "description": "获取段评回复的 URL。" },
+        "replyListRule": { "$ref": "#/$defs/ruleString", "title": "回复列表规则" },
+        "replyIdRule": { "$ref": "#/$defs/ruleString", "title": "回复 ID 规则" },
+        "replyAvatarRule": { "$ref": "#/$defs/ruleString", "title": "回复头像规则" },
+        "replyNameRule": { "$ref": "#/$defs/ruleString", "title": "回复发布者规则" },
+        "replyBadgeRule": { "$ref": "#/$defs/ruleString", "title": "回复徽章规则" },
+        "replyContentRule": { "$ref": "#/$defs/ruleString", "title": "回复内容规则" },
+
+        "reviewUrl": { "$ref": "#/$defs/ruleString", "title": "段评 URL（旧版）", "x-ui-visible": false, "x-deprecated": "旧版单体段评字段，已被 summary/detail/reply 三段式取代，UI 不再暴露" },
+        "avatarRule": { "$ref": "#/$defs/ruleString", "title": "段评发布者头像（旧版）", "x-ui-visible": false, "x-deprecated": true },
+        "contentRule": { "$ref": "#/$defs/ruleString", "title": "段评内容（旧版）", "x-ui-visible": false, "x-deprecated": true },
+        "postTimeRule": { "$ref": "#/$defs/ruleString", "title": "段评发布时间（旧版）", "x-ui-visible": false, "x-deprecated": true },
+        "voteUpUrl": { "$ref": "#/$defs/ruleString", "title": "点赞 URL", "x-ui-visible": false, "x-not-implemented": "源码注释：「这些功能将在以上功能完成以后实现」" },
+        "voteDownUrl": { "$ref": "#/$defs/ruleString", "title": "点踩 URL", "x-ui-visible": false, "x-not-implemented": true },
+        "postReviewUrl": { "$ref": "#/$defs/ruleString", "title": "发送回复 URL", "x-ui-visible": false, "x-not-implemented": true },
+        "postQuoteUrl": { "$ref": "#/$defs/ruleString", "title": "发送回复段评 URL", "x-ui-visible": false, "x-not-implemented": true },
+        "deleteUrl": { "$ref": "#/$defs/ruleString", "title": "删除段评 URL", "x-ui-visible": false, "x-not-implemented": true }
+      }
+    }
+  },
+
+  "x-legacy-migration": {
+    "description": "旧版书源（v1，扁平 ruleXxx 字段）→ 新版（v3，嵌套 ruleXxx 对象）迁移。⚠️ 不只是字段重命名，规则语法本身也要转换。",
+    "detect": "JSON 文本包含 'ruleSearchUrl' 或 'ruleFindUrl' 即判定为旧版（BookSourceEditViewModel.importSource L113/L121）",
+    "converters": {
+      "toNewRule": "规则语法迁移：# → ##（单#变双#）；| → ||（单竖线变双，若含 ## 则只在 ## 前段替换，避免破坏正则）；& → &&（排除含 http 或 / 开头的规则，避免误伤 URL query）。跳过条件：规则以 @CSS: / @XPath: / // / ## / : 开头，或含 @js: / <js>。另处理前缀：'-' → 反向，'+' → allinone。",
+      "toNewUrl": "URL 语法迁移：<js> 前缀时 =searchKey→={{key}}、=searchPage→={{page}}；抽 @Header:{...} 转 headers；| 后段取 charset；{{...}} 暂存为 $N 占位；{ → <、} → >；searchKey→{{key}}；searchPage±1→{{page±1}}、searchPage→{{page}}；@ 后段为 POST body；末尾拼 ,{json}。",
+      "toNewUrls": "按 && 或换行拆分为多条 URL，逐条 toNewUrl 后以 \\n 连接。",
+      "uaToHeader": "旧版裸 UA 字符串 → {\"User-Agent\":\"...\"} JSON 串。",
+      "contentDollar": "正文规则若以 $ 开头且不以 $. 开头，去掉首字符 $。",
+      "legacyTypeFromString": "旧版 bookSourceType 为字符串，仅 'AUDIO' → 1，其余 → 0。"
+    },
+    "note": "迁移器实现见 src/legacy/migrate.ts；字段映射表见 src/legacy/field-map.ts。"
+  }
+}

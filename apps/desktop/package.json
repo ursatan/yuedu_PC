@@ -1,0 +1,84 @@
+{
+  "name": "@yuedu/desktop",
+  "version": "1.0.26112702",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:server": "node build-server.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "gen-icon": "node ../../scripts/gen-app-icon.mjs",
+    "dist": "node prepare-dist.mjs && electron-builder --win",
+    "prep-dist": "node prepare-dist.mjs"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.15.3"
+  },
+  "description": "悦读 EngineHub 桌面端",
+  "author": "yuedu",
+  "build": {
+    "appId": "com.yuedu.enginehub",
+    "productName": "YueDu",
+    "disableAsarIntegrity": true,
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "desktop-lib.js",
+      "float-geometry.json",
+      "lib-webview-pool.js",
+      "lyrics.html",
+      "lyrics.js",
+      "lyrics-preload.js",
+      "server-settings.html",
+      "server-settings-preload.js",
+      "assets/**/*",
+      "server-bundle.mjs",
+      "dom-worker.mjs",
+      "batch-child.mjs",
+      "xhr-sync-worker.js",
+      "web-dist/**/*"
+    ],
+    "asarUnpack": [
+      "server-bundle.mjs",
+      "dom-worker.mjs",
+      "batch-child.mjs",
+      "xhr-sync-worker.js",
+      "web-dist/**/*"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "txt",
+        "name": "文本文档",
+        "description": "用悦读打开文本小说（txt）",
+        "role": "Editor"
+      },
+      {
+        "ext": "epub",
+        "name": "EPUB 电子书",
+        "description": "用悦读打开 EPUB 电子书",
+        "role": "Viewer"
+      }
+    ],
+    "win": {
+      "icon": "assets/icon.png",
+      "signAndEditExecutable": false,
+      "target": [
+        "zip"
+      ]
+    },
+    "extraResources": [
+      {
+        "from": "assets/icon-server.ico",
+        "to": "icon-server.ico"
+      }
+    ]
+  }
+}

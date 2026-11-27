@@ -1,0 +1,37 @@
+{
+ "bookSourceComment": "合成夹具（#563 abs:href 锁）。不含任何第三方站点抓取内容。",
+ "bookSourceGroup": "合成",
+ "bookSourceName": "合成源 · abs:href",
+ "bookSourceType": 0,
+ "bookSourceUrl": "https://example.test/",
+ "enabled": true,
+ "enabledExplore": true,
+ "exploreUrl": "",
+ "jsLib": "var EX_B='https://example.test';",
+ "respondTime": 180000,
+ "ruleBookInfo": {
+  "author": "@js:JSON.parse(result).author",
+  "coverUrl": "@js:JSON.parse(result).coverUrl",
+  "name": "@js:JSON.parse(result).name"
+ },
+ "ruleContent": {
+  "content": "#chapter@p@text"
+ },
+ "ruleExplore": [],
+ "ruleSearch": {
+  "author": "@js:JSON.parse(result).author",
+  "bookList": "<js>\n(function(){\nvar doc=org.jsoup.Jsoup.parse(String(result),'https://example.test/');\nvar es=doc.select('a.book-card[href^=\"/novel\"]');\nvar out=[];\nfor(var i=0;i<es.size();i++){\n var e=es.get(i);\n var u=String(e.attr('abs:href'));\n if(!u)continue;\n var t=e.select('.book-title').first()==null?'':e.select('.book-title').first().text();\n var au=e.select('.book-author').first()==null?'':e.select('.book-author').first().text();\n out.push(JSON.stringify({'name':t,'author':au,'url':u,'coverUrl':EX_B+'/cover/img/'+(1000+i)+'.jpg'}));\n}\nreturn out;\n})()\n</js>",
+  "bookUrl": "@js:JSON.parse(result).url",
+  "coverUrl": "@js:JSON.parse(result).coverUrl",
+  "intro": "@js:JSON.parse(result).intro",
+  "kind": "@js:JSON.parse(result).kind",
+  "name": "@js:JSON.parse(result).name"
+ },
+ "ruleToc": {
+  "chapterList": "@js:[]",
+  "chapterName": "text",
+  "chapterUrl": "href"
+ },
+ "searchUrl": "/search?keyword={{key}}",
+ "weight": 0
+}

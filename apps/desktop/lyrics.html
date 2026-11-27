@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self'" />
+  <title>悦读 · 浮条</title>
+  <style>
+    :root {
+      --float-bg-opacity: 0.72;
+      /* 背景色 + 透明度由 lyrics.js 合成（透明度只作用于背景，文字/图标不透明） */
+      --float-bg-rgba: rgba(12, 14, 18, 0.72);
+      --float-font-size: 22px;
+      --float-text: #F2F2F2;
+      --float-accent: #5B8DEF;
+      --float-muted: #9AA0A6;
+      /* 前后句 = 当前文字色的同色系降透明度（lyrics.js 按 --float-text 现算，不写死灰） */
+      --float-dim: rgba(242, 242, 242, 0.55);
+      --float-btn-bg: rgba(255, 255, 255, 0.10);
+      --float-btn-bg-hover: rgba(255, 255, 255, 0.20);
+      --bar-row-h: 33.3333%;
+      /* 字号/行高一律整数像素（小数会让 Chromium 走次像素排版 ⇒ 发虚）。
+         由 lyrics.js 按 --float-font-size 现算并落到下面这些变量上，只作用于三条行。 */
+      --fl-fs-cur: 22px;
+      --fl-fs-adj: 16px;
+      --fl-fs-read: 16px;
+      --fl-fs-bar: 15px;
+      --fl-lh-cur: 30px;
+      --fl-lh-adj: 22px;
+      --fl-lh-read: 28px;
+      --fl-lh-bar: 20px;
+      /* 颜色浮层高度：打开时正文/三行让位，不让面板压住可读区域 */
+      --fl-panelh: 0px;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      font-family: "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
+    }
+
+    /* 两种形态同一扇窗：歌词 = 朗读当前句；阅读 = 正文流 */
+    /* ★ 整块不再用 `-webkit-app-region: drag` 拖动：Windows 的拖拽区会吞掉鼠标事件，
+       按钮「看得见、点不到」就是这么来的（用户 2026-11-08）。
+       改为渲染层自己算屏幕增量 → IPC → 主进程 setBounds（见 lyrics.js / main.js）。 */
+    .fl-card, .bar-card {
+      position: relative;
+      box-sizing: border-box;
+      height: 100%;
+      border-radius: 14px;
+      /* 透明度只作用于背景：文字/图标颜色一律不透明 */
+      background: var(--float-bg-rgba);
+      overflow: hidden;
+    }
+
+    /* 三态共用同一份工具条 / 颜色浮层：只按形态隐藏「内容主体」 */
+    body[data-mode="lyrics"] .bar-card,
+    body[data-mode="lyrics"] .rd-card,
+    body[data-mode="bar"] .fl-card,
+    body[data-mode="bar"] .rd-card,
+    body[data-mode="regular"] .fl-card,
+    body[data-mode="regular"] .bar-card { display: none; }
+
+    /* 浮层打开：内容视口让出底部高度（面板不压正文/三行）。
+       ★ 卡片下缘改成直角、面板下缘同圆角 ⇒ 卡片 + 面板在窗内拼成同一个圆角矩形，
+         不再像「贴在窗口外面的一条」。 */
+    body.fl-panel-on .fl-card,
+    body.fl-panel-on .rd-card,
+    body.fl-panel-on .bar-card {
+      height: calc(100% - var(--fl-panelh, 0px));
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    /* ---------------- 常规形态（自绘正文，可滚动） ---------------- */
+    .rd-card {
+      position: relative;
+      box-sizing: border-box;
+      /* ★ 与歌词/条形同一套主体窗体：背景色 + 透明度真正生效，不再是一块透明玻璃 */
+      height: 100%;
+      border-radius: 14px;
+      background: var(--float-bg-rgba);
+      overflow: hidden;
+      padding: 30px 14px 34px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .rd-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--float-muted);
+      flex: 0 0 auto;
+    }
+
+    .rd-meta #rdTitle {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--float-accent);
+    }
+
+    .rd-meta #rdCount { flex: 0 0 auto; }
+
+    .rd-body {
+      flex: 1 1 auto;
+      /* ★ 必须给 flex 子项一个可收缩的 0 基准，否则内容再长也撑开卡片 ⇒ 竖直方向滚不动 */
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      font-size: var(--fl-fs-read);
+      line-height: var(--fl-lh-read);
+      color: var(--float-text);
+      user-select: text;
+      -webkit-user-select: text;
+      scrollbar-width: thin;
+      scrollbar-color: var(--float-btn-bg-hover) transparent;
+    }
+
+    .rd-body p { margin: 0 0 0.72em; }
+    .rd-body p:last-child { margin-bottom: 0; }
+
+    /* ---------------- 歌词形态（既有行为） ---------------- */
+    .fl-card {
+      padding: 10px 14px 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    /* 长句按容器宽度换行、多行完整可见（对齐 Web 端歌词：white-space: normal + overflow-wrap:anywhere） */
+    .fl-line {
+      margin: 0;
+      /* 歌词三行一律居中（与常规/条形一致）：卡片是 flex 拉伸的满宽行，
+         不给 text-align 时文字会贴左，长句折行后也左对齐。 */
+      text-align: center;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      opacity: 1;
+      /* ★ 不许被 flex 压缩：窗口偏矮时行仍按自然高度排版，
+         `offsetHeight` 量的就是真实内容高（否则会被压成一行高 ⇒ 窗高逐帧慢慢涨） */
+      flex: 0 0 auto;
+    }
+
+    /* 前后句（已读过 / 将读）用当前文字色的同色系降透明度，不再固定成一个深灰 */
+    .fl-prev, .fl-next {
+      font-size: var(--fl-fs-adj);
+      line-height: var(--fl-lh-adj);
+      color: var(--float-dim);
+      min-height: var(--fl-lh-adj);
+    }
+
+    .fl-cur {
+      font-size: var(--fl-fs-cur);
+      line-height: var(--fl-lh-cur);
+      font-weight: 600;
+      color: var(--float-text);
+      min-height: var(--fl-lh-cur);
+    }
+
+    .fl-read { color: var(--float-accent); }
+    .fl-unread { color: var(--float-text); }
+
+    /* 章节标题行：与 Web PiP 歌词同位置（三行轨道最上方），朗读到章首时出现 */
+    .fl-title {
+      font-size: var(--fl-fs-adj);
+      line-height: var(--fl-lh-adj);
+      min-height: var(--fl-lh-adj);
+      font-weight: 600;
+      color: var(--float-accent);
+      text-align: center;
+    }
+
+    /* ★ 三态统一工具条（对齐 Web PiP 的漂浮工具条）：
+       常规/条形只在顶部 48px 热区浮现，歌词态鼠标在窗内任意位置浮现。
+       默认整体移出窗体上沿（而不是 pointer-events:none）——既满足「不可点」，
+       又能在 `focusable:false` 的首帧稳定收到 pointermove。 */
+    .fl-actions {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      z-index: 4;
+      box-sizing: border-box;
+      height: 48px;
+      /* 与窗体同圆角的上缘：工具条浮在窗口顶部，不再露出方形直角 */
+      border-radius: 14px 14px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      padding: 4px 8px;
+      background: linear-gradient(180deg, rgba(8, 10, 14, 0.62), rgba(8, 10, 14, 0));
+      opacity: 0;
+      transform: translateY(-100%);
+      pointer-events: auto;
+      transition: opacity .16s ease, transform .16s ease;
+    }
+
+    .fl-actions.dock-on {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .fl-actions .dock-spacer { flex: 1 1 auto; }
+    .fl-actions .dock-label {
+      flex: 0 0 auto;
+      padding: 0 4px;
+      font-size: 11px;
+      color: var(--float-muted);
+    }
+
+    .fl-actions button {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      border-radius: 7px;
+      background: var(--float-btn-bg);
+      color: var(--float-text);
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .fl-actions button:hover { background: var(--float-btn-bg-hover); }
+    .fl-actions button:active { background: rgba(255, 255, 255, 0.28); }
+    .fl-actions button.on { background: var(--float-accent); color: #fff; }
+    .fl-actions button[hidden] { display: none; }
+    .fl-actions svg { width: 15px; height: 15px; fill: currentColor; pointer-events: none; }
+
+    /* 最窄档（歌词窗最小 320px）要装下全部按钮：收紧间距与按钮尺寸，
+       而不是裁掉/挤掉任何一个（13 个按钮：13×22 + 12×2 + 6 = 316 ≤ 320） */
+    @media (max-width: 440px) {
+      .fl-actions { gap: 2px; padding: 4px 3px; }
+      .fl-actions button { width: 22px; height: 24px; font-size: 12px; border-radius: 6px; }
+      .fl-actions svg { width: 13px; height: 13px; }
+    }
+
+    /* ---------------- 目录浮层（三态共用；数据来自桌面桥推送） ---------------- */
+    .fl-toc {
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      top: 44px;
+      bottom: 8px;
+      z-index: 6;
+      box-sizing: border-box;
+      display: none;
+      flex-direction: column;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(8, 10, 14, 0.96);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      color: var(--float-text);
+      overflow: hidden;
+    }
+
+    .fl-toc.on { display: flex; }
+
+    .fl-toc-head {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 12px;
+      color: var(--float-muted);
+    }
+
+    .fl-toc-head button {
+      width: 24px;
+      height: 24px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--float-btn-bg);
+      color: var(--float-text);
+      cursor: pointer;
+    }
+
+    .fl-toc-list {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: var(--float-btn-bg-hover) transparent;
+      padding: 4px;
+    }
+
+    .fl-toc-item {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--float-text);
+      font-size: 12px;
+      line-height: 16px;
+      text-align: left;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      cursor: pointer;
+    }
+
+    .fl-toc-item:hover { background: var(--float-btn-bg); }
+    .fl-toc-item.cur { background: var(--float-btn-bg-hover); color: var(--float-accent); font-weight: 600; }
+    .fl-toc-empty { padding: 10px; font-size: 12px; color: var(--float-muted); }
+
+    /* ---------------- 颜色/外观浮层（三态共用同一份 DOM） ----------------
+     * 贴底浮出、整宽；打开时正文/三行按 --fl-panelh 让位（见 body.fl-panel-on）。
+     * Esc / 点空白关闭；不遮住可读区域。 */
+    .fl-settings {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 5;
+      box-sizing: border-box;
+      padding: 7px 10px;
+      /* ★ 在窗口内部浮出：下缘与窗体同圆角，上缘不切（与上方卡片拼成同一块） */
+      border-radius: 0 0 14px 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+      background: var(--float-bg-rgba);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      color: var(--float-text);
+      font-size: 12px;
+      line-height: 1.2;
+      display: none;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 14px;
+    }
+
+    .fl-settings.on { display: flex; }
+
+    .fl-set-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .fl-set-row > .fl-set-label {
+      flex: 0 0 auto;
+      color: var(--float-muted);
+      font-size: 11px;
+      margin-right: 2px;
+    }
+
+    .fl-set-row button {
+      min-width: 26px;
+      height: 24px;
+      padding: 0 6px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--float-btn-bg);
+      color: var(--float-text);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .fl-set-row button:hover { background: var(--float-btn-bg-hover); }
+
+    .fl-set-row input[type="range"] {
+      flex: 1;
+      min-width: 0;
+      accent-color: var(--float-accent);
+    }
+
+    /* 自定义取色：与 5 个预设并列，任意 #rrggbb 都写回同一份 prefs */
+    .fl-set-row input[type="color"] {
+      width: 22px;
+      height: 18px;
+      padding: 0;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .fl-set-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 1px; }
+    .fl-set-row input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+
+    .fl-swatches {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .fl-swatches button {
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      padding: 0;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    }
+
+    .fl-swatches button.sel { border-color: var(--float-accent); }
+    /* 「跟随主题」：半黑半白示意（桌面映射为默认文字/底色） */
+    .fl-swatches button.fl-sw-default {
+      background: linear-gradient(135deg, #2b2d33 0 50%, #d9dbe1 50% 100%);
+    }
+
+    /* 未锁定 ⇒ 整块可拖（抓手光标）；锁定 ⇒ 普通光标 */
+    body:not(.fl-locked) .fl-card { cursor: grab; }
+    .fl-dragging, .fl-dragging .fl-card { cursor: grabbing; }
+
+    /* ---------------- 条形档（阅读正文流） -----------------------------
+     * 视口 = 3 行：上一行 / 当前行 / 下一行；轨道多放一行让「向上滚动」连续。
+     * 行高按真实内容（已按窗宽切好，单行）自然排布，由渲染层把「当前行」垂直居中。
+     * ------------------------------------------------------------------ */
+    .bar-card {
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      /* 窗高有下限（主进程还会按屏幕夹取）⇒ 多出来的高度留白，只让视口正好三行 */
+      justify-content: center;
+    }
+
+    /* ★ 视口高度 = 可见行的实测高度（渲染层写 --bar-view-h）：窗再高也只露 3 行，
+       不会因为主进程的下限多露出第 4 行的半截。 */
+    .bar-viewport {
+      height: var(--bar-view-h, 100%);
+      max-height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-track {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      transform: translateY(0);
+      transition: transform 0 linear;
+      will-change: transform;
+    }
+
+    .bar-track.slide {
+      transition: transform var(--bar-anim-ms, 280ms) cubic-bezier(.33, .05, .24, 1);
+    }
+
+    /* 按宽折行（同歌词三行）；行高随内容自然变化，轨道位移由 JS 按实测行高算。
+       ★ 字号/行高与 transform 跑同一条时间轴：推进时颜色+字号一起过渡，收尾压回 3 行不跳。 */
+    .bar-row {
+      flex: 0 0 auto;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      text-align: center;
+      line-height: var(--fl-lh-bar);
+      font-size: var(--fl-fs-bar);
+      /* 前后句 = 当前文字色的同色系降透明度（与歌词态一致）；当前行直接用文字色，
+         这样色盘里点「文字预设颜色」时条形态会真的跟着变（此前写死 muted/accent）。 */
+      color: var(--float-dim);
+      transition: font-size var(--bar-anim-ms, 280ms) cubic-bezier(.33, .05, .24, 1),
+        line-height var(--bar-anim-ms, 280ms) cubic-bezier(.33, .05, .24, 1),
+        color var(--bar-anim-ms, 280ms) cubic-bezier(.33, .05, .24, 1);
+    }
+
+    .bar-row.is-cur {
+      font-size: var(--fl-fs-cur);
+      line-height: var(--fl-lh-cur);
+      font-weight: 600;
+      color: var(--float-text);
+    }
+
+    /* 章节标题行：与正文共用轨道/字号角色，只换字重与字色（同 Web PiP） */
+    .bar-row.is-title { font-weight: 600; color: var(--float-accent); }
+
+    .bar-empty { color: var(--float-muted); font-size: var(--fl-fs-bar); }
+  </style>
+</head>
+<body data-mode="lyrics">
+  <!-- 歌词形态：朗读当前句（既有行为，不回归） -->
+  <div class="fl-card">
+    <div class="fl-line fl-title" id="flTitle"></div>
+    <div class="fl-line fl-prev" id="flPrev"></div>
+    <div class="fl-line fl-cur" id="flCur"><span class="fl-read" id="flRead"></span><span class="fl-unread" id="flUnread"></span></div>
+    <div class="fl-line fl-next" id="flNext"></div>
+  </div>
+
+  <!-- 常规形态：自绘正文（可滚动），窗口尺寸由用户拖拽 -->
+  <div class="rd-card" data-rd-card>
+    <div class="rd-meta"><span id="rdTitle"></span><span id="rdCount"></span></div>
+    <div class="rd-body" id="rdBody"></div>
+  </div>
+
+  <!-- 阅读形态：正文流（不朗读）。当前行大字，前后行小字，整体向上滚动 -->
+  <div class="bar-card" data-bar-card>
+    <div class="bar-viewport">
+      <div class="bar-track" id="barTrack"></div>
+    </div>
+  </div>
+
+  <!-- ★ 三态统一工具条：目录 / 章节 / 字号 / 色盘 / 形态 / 速度 / 穿透 / 朗读 / 关闭
+       放在 body 下、拖拽区之外（Windows 的 app-region 会吞掉鼠标事件）。 -->
+  <div class="fl-actions" data-dock>
+    <span class="dock-label" id="barSpeedLabel" data-modes="bar">中</span>
+    <span class="dock-spacer"></span>
+    <button type="button" data-tool="toc" data-modes="lyrics regular bar" title="目录" aria-label="目录">☰</button>
+    <button type="button" data-tool="chapterPrev" data-cmd="chapterPrev" data-modes="lyrics regular bar" title="上一章" aria-label="上一章">‹‹</button>
+    <button type="button" data-tool="chapterNext" data-cmd="chapterNext" data-modes="lyrics regular bar" title="下一章" aria-label="下一章">››</button>
+    <button type="button" data-tool="fontDown" data-modes="lyrics regular bar" title="减小字号" aria-label="减小字号">A−</button>
+    <button type="button" data-tool="fontUp" data-modes="lyrics regular bar" title="增大字号" aria-label="增大字号">A+</button>
+    <button type="button" data-tool="color" data-modes="lyrics regular bar" title="文字 / 背景 / 透明度" aria-label="文字 / 背景 / 透明度">🎨</button>
+    <button type="button" data-tool="tier" data-modes="regular bar" title="切换常规态 / 条形态" aria-label="切换常规态 / 条形态">▤</button>
+    <button type="button" data-tool="neighbors" data-modes="lyrics bar" title="显示 / 隐藏前后句" aria-label="显示 / 隐藏前后句">👁</button>
+    <button type="button" data-tool="sentencePrev" data-modes="lyrics" title="上一句" aria-label="上一句">
+      <svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zm3.5 7 10.5 7V5z"/></svg>
+    </button>
+    <button type="button" data-tool="play" data-cmd="toggle" data-modes="lyrics" title="播放/暂停" aria-label="播放/暂停" id="flToggle">
+      <svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>
+    </button>
+    <button type="button" data-tool="sentenceNext" data-modes="lyrics" title="下一句" aria-label="下一句">
+      <svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg>
+    </button>
+    <button type="button" data-tool="speed" data-modes="bar" title="切换滚动速度（慢 / 中 / 快）" aria-label="切换滚动速度">⏱</button>
+    <!-- 歌词：回到默认位置与内容高度（原「设置 → 桌面端 → 重置位置」，入口收进窗内） -->
+    <button type="button" data-tool="resetPos" data-modes="lyrics" title="重置位置（回到默认位置与内容高度）" aria-label="重置位置">⌖</button>
+    <!-- 歌词/常规：锁定窗口（只锁拖动，不影响正文滚动）；条形：点击穿透 -->
+    <button type="button" data-tool="clickThrough" data-modes="lyrics regular bar" title="锁定 / 解锁窗口" aria-label="锁定 / 解锁窗口" id="barIgnoreBtn">🔒</button>
+    <button type="button" data-tool="close" data-modes="lyrics regular bar" title="关闭浮窗（不退出应用）" aria-label="关闭浮窗">
+      <svg viewBox="0 0 24 24"><path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.89 18.3 9.17 12 2.89 5.71 4.3 4.29l6.29 6.3 6.3-6.3z"/></svg>
+    </button>
+  </div>
+
+  <!-- 目录浮层：三态共用，数据由桌面桥推送，点击章节回传 chapterOpen -->
+  <div class="fl-toc" data-toc>
+    <div class="fl-toc-head">
+      <span>目录</span>
+      <button type="button" data-toc-close title="关闭目录" aria-label="关闭目录">✕</button>
+    </div>
+    <div class="fl-toc-list" id="tocList"></div>
+  </div>
+
+  <!-- 浮条设置面板：与设置页读写**同一份** prefs（不另开第二套配置）。
+       字号 / 拖动锁定不在这里：顶部工具条已有 A−/A+ 与「点击穿透[可拖动/选字]」。 -->
+  <div class="fl-settings" data-settings>
+    <div class="fl-set-row">
+      <span class="fl-set-label">文字</span>
+      <div class="fl-swatches" data-swatches="text"></div>
+      <input type="color" data-picker="text" title="自定义文字颜色" aria-label="自定义文字颜色" />
+    </div>
+    <div class="fl-set-row">
+      <span class="fl-set-label">背景</span>
+      <div class="fl-swatches" data-swatches="bg"></div>
+      <input type="color" data-picker="bg" title="自定义背景颜色" aria-label="自定义背景颜色" />
+    </div>
+    <div class="fl-set-row">
+      <span class="fl-set-label">透明度</span>
+      <input type="range" min="0" max="1" step="0.05" id="flOpacity" />
+      <span id="flOpacityVal">72%</span>
+    </div>
+  </div>
+
+  <script src="lyrics.js"></script>
+</body>
+</html>

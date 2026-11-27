@@ -1,0 +1,28 @@
+{
+  "name": "yuedu-pc",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "description": "插件式解析引擎集合：Legado / AppleCMS / ... 统一门面",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "check:release": "node scripts/check-release-clean.mjs",
+    "check:docs": "node scripts/docs-size.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "jsdom": "^30.0.1",
+    "jsonpath-plus": "^10.4.0",
+    "mdn-data": "2.27.1"
+  },
+  "pnpm": {}
+}
