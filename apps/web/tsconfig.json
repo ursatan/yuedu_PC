@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    /**
+     * ⚠️ 2026-09-30：从 `ES2022` 提到 `ES2024` —— web 的 tsconfig **不继承** `tsconfig.base.json`
+     * （本仓一贯如此），而 `packages/core` 的 `worker-pool.ts` 用了 `Atomics.waitAsync`，
+     * 它是 ES2024 才有的声明 ⇒ vue-tsc 检查到 core 源码时报 TS2550。
+     * 运行时一直是好的（Node ≥22 支持），**只是缺声明**。
+     */
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "@yuedu/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/contract/index.ts",
+    "./highlight-rule-matcher": "./src/highlight-rule-matcher.ts",
+    "./source-share-passphrase": "./src/source-share-passphrase.ts",
+    "./direct-link-upload": "./src/direct-link-upload.ts",
+    "./webdav": "./src/webdav.ts",
+    "./book-progress": "./src/book-progress.ts",
+    "./media-shape": "./src/content/media-shape.ts",
+    "./media-extract": "./src/content/media-extract.ts",
+    "./diagnose": "./src/diag/diagnose.ts",
+    "./self-fetch": "./src/diag/self-fetch.ts",
+    "./site-customize": "./src/site-customize.ts",
+    "./tts": "./src/tts/index.ts",
+    "./export": "./src/export/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "jpeg-js": "^0.4.4",
+    "js-beautify": "^2.0.3",
+    "jsdom": "^30.0.1",
+    "jsonpath-plus": "^10.4.0",
+    "opencc-js": "^1.4.2",
+    "pngjs": "^7.0.0",
+    "undici": "^6.28.1"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^30.0.0"
+  }
+}

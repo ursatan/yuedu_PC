@@ -1,0 +1,151 @@
+# ══════════════════════════════════════════════════════════════════════
+# 注意：git 不支持"行尾注释"（`pattern  # 说明` 会被当成整个模式），
+#       所有说明必须单独成行。
+# ══════════════════════════════════════════════════════════════════════
+
+# ── 依赖 ──────────────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+
+# ── 构建产物（每阶段重建即可；恢复历史版本后需重新 build）──────────────
+# 重建：sh apps/desktop/build-server.sh
+#       pnpm --filter @yuedu/web exec vite build
+#       node apps/desktop/prepare-dist.mjs（如需桌面打包）
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# electron-builder 输出（~378MB）
+apps/desktop/release/
+apps/desktop/release2/
+apps/desktop/release-*/
+
+# prepare-dist.mjs 的复制产物（源分别是 apps/web/dist、data/sources/book-482、apps/server/sources/cms）
+apps/desktop/web-dist/
+apps/desktop/book-482/
+apps/desktop/cms/
+
+# esbuild 产物（~17MB）
+apps/desktop/server-bundle.mjs
+apps/desktop/dom-worker.mjs
+apps/desktop/batch-child.mjs
+apps/desktop/*.backup.mjs
+
+# build-server.sh 生成、patch-bundle.mjs 消费
+apps/desktop/data/patch.json
+apps/data/patch.json
+
+# ── 上游参考项目（各自自带 .git，仅供本地对照；合计 ~850MB）────────────
+legado/
+others/
+
+# ── 运行时数据（含 Cookie 等凭据与用户数据，绝不入库）──────────────────
+# `#651`：源语料合并成 `data/seed/bookSource.json` / `rssSource.json`（单个 Legado JSON 数组）。
+# 该语料是**第三方站点规则/订阅的转载集**（485 源 / 330 订阅），公开仓库不得携带
+# ⇒ 两个文件已 `git rm --cached`，本地自备，`.gitignore` 忽略整个 `data/seed/`。
+# 旧的 `data/sources/book-NNN/*.json`（1 源 1 文件）与 `data/imported-sources.json` 已退役。
+# 源运行时唯一存储在 `data/yuedu.db`（下面的 *.db 规则已忽略），**不入库**。
+data/*.json
+data/*.html
+data/*.txt
+data/yuedu.db
+data/yuedu.db-wal
+data/yuedu.db-shm
+# 迁移/改造前的库备份（含用户数据）
+data/yuedu.db.*
+# 迁移前的旧数据留档（`#651` 备份，可能含用户私有源，绝不入库）
+data/backup-651/
+# 源语料（第三方转载集，公开仓库不携带；本地自备后由空库铺底使用）
+data/seed/
+data/blobs/
+data/blobs-index.json
+# 登录窗口的浏览器 profile（每个源一份，含 Cookie/登录态凭据，~15MB/源）——绝不入库
+data/browser-profiles/
+# `#621` 收尾发现：某些测试以 `apps/server` 为 cwd 跑起来时，`DATA_DIR` 默认值会落到
+# `apps/server/data/`（含 `vault.key` —— 加密密钥）。它同样不该入库。
+apps/server/data/
+# 其余运行时产物：基线探针输出 / 临时 DB / pid / 备份 / 本地书正文
+data/baseline/
+data/*.db
+data/*.bak
+data/server.pid
+data/local-books/
+# 包内临时探针脚本（正式探针在 tmp/，同样不入库）
+packages/*/tmp-probe-*
+
+# ── 生成的报告 / 一次性探测输出（可重跑脚本再生成）────────────────────
+zero-chapter-report.md
+/probe-*.txt
+/probe-*.json
+/capture-*.txt
+/*-out.txt
+/collection-probe.json
+/rp-detail.json
+/jb.txt
+/wt.txt
+
+# ── tmp/：只保留可复用诊断工具（脚本），日志与一次性产物不入库 ─────────
+tmp/*
+!tmp/*.mjs
+!tmp/*.mts
+!tmp/*.py
+
+# ── 编辑器 / 系统 / 日志 ──────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# vite 构建临时文件（vite.config.ts 被改动时会生成 *.timestamp-*.mjs，别提交）
+*.timestamp-*.mjs
+
+# ── 临时工作目录 / 文件：`.tmp-<编号>-<随机>/` 任务现场 · `.tmp-dbg7.mts` · `.tmp-data-backup/` ──
+# 通用规则（任意层级都命中；`.tmp-diag*/` 等具体写法已被它覆盖）—— 一次性产物，一律不入库
+.tmp-*
+apps/web/dist.bak-*/
+apps/desktop/server-bundle.mjs.bak-*
+apps/desktop/*.bak-*
+
+# ── 编辑器 / Agent 本地数据（与 .vscode/ · .idea/ 同性质；handover §2.1 已列为排除项）──
+.trae/
+.workbuddy/
+
+# ── 根级一次性探针产物（hjw-*.tmp.json · m138*.tmp.json/.tmp.html；正式探针脚本在 tmp/）─
+/*.tmp.json
+/*.tmp.html
+
+# ── 源库运行时备份（`data/*.bak` 只盖住 data 根级；书源目录里的 `.bak7` 等在这）─────────
+data/sources/**/*.bak*
+
+# ── 一次性清理/体检报告（文件头自带声明「看完即可删除，不入库」）───────────────────────
+/CLEANUP-*.md
+
+# ── 运行时生成的密钥文件（secret-vault：首次启动生成 data/vault.key，0600）───────────
+# 提交它就是提交 master key；换机器后旧密文也解不开，故不入 Git。
+data/vault.key
+# 解密失败时留档的 Cookie 密文（`readSourceCookies` 改名产出，含登录态，绝不入库）
+data/cookies.json.bad-*
+data/*.vault.key
+
+# ── 推送前的补齐项：缓存/备份/密钥目录（体积大或含凭据，绝不入库）──────────────
+# 封面图片/正文等接口缓存（实测 ~60MB，可重新抓取）
+data/cache/
+# 听书流式音频缓存（可重新生成）
+data/audio-cache/
+# 手动导出的全量备份包（含书架、加密 Cookie，仅本地迁移用）
+data/backup.zip
+data/*.zip
+# 远端 jsLib 镜像：第三方站点脚本的本地缓存（按需抓取），连同 `.hints.json` 一律不入库
+data/jslib-mirror/
+# 桌面端运行时数据：patch.json（构建产物）+ vault.key（加密主密钥）
+apps/desktop/data/
+# 包内一次性探针脚本 / 测试用数据目录
+packages/*/tmp/
+packages/engine-legado/data/
+
+# ── 第三方抓取的测试快照（本地保留、不入库；#563 锁已改用合成夹具）──────────────
+packages/engine-legado/src/__tests__/fixtures/hj-source.json
+packages/engine-legado/src/__tests__/fixtures/hj-rank-allvisit-1.html

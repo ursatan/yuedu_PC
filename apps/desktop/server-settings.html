@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>悦读 · 服务设置</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 18px 20px 28px;
+    font-family: system-ui, "Microsoft YaHei", sans-serif;
+    background: #0f1420; color: #e3e8f2; font-size: 13px;
+  }
+  h1 { font-size: 15px; margin: 0 0 4px; font-weight: 600; }
+  .sub { color: #8b97ad; font-size: 12px; margin-bottom: 14px; }
+  section {
+    border: 1px solid #263049; border-radius: 10px;
+    background: #141b2a; padding: 12px 14px; margin-bottom: 12px;
+  }
+  section h2 { font-size: 13px; margin: 0 0 10px; color: #aebbd4; font-weight: 600; }
+  .kv { display: grid; grid-template-columns: 92px 1fr; gap: 6px 10px; font-size: 12px; }
+  .kv .k { color: #8b97ad; }
+  .kv .v { color: #e3e8f2; word-break: break-all; font-family: ui-monospace, Consolas, monospace; }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+  input[type="number"], input[type="text"] {
+    background: #0c111c; color: #e3e8f2; border: 1px solid #2c3853;
+    border-radius: 6px; padding: 6px 8px; font-size: 12px; font-family: inherit;
+  }
+  input[type="number"] { width: 120px; }
+  input[type="text"] { flex: 1; min-width: 220px; }
+  input[readonly] { color: #9aa7bd; }
+  button {
+    background: #24304a; color: #dbe4f6; border: 1px solid #33415f;
+    border-radius: 6px; padding: 6px 11px; font-size: 12px; cursor: pointer;
+  }
+  button:hover { background: #2b3957; }
+  button.primary { background: #3b5bdb; border-color: #4c6ef5; color: #fff; }
+  button.primary:hover { background: #4c6ef5; }
+  button.danger { background: #4a2230; border-color: #6b2f42; color: #ffc9d5; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .hint { color: #7f8ba1; font-size: 11px; margin-top: 6px; line-height: 1.6; }
+  .warn { color: #ffb86b; font-size: 11px; margin-top: 6px; }
+  .msg { min-height: 16px; font-size: 12px; margin-top: 8px; color: #7ee0a1; }
+  .msg.err { color: #ff8b9c; }
+  label.chk { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; }
+  label.chk input { width: 15px; height: 15px; }
+  footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .orphans { font-size: 11px; color: #aebbd4; margin-top: 6px; max-height: 110px; overflow: auto; font-family: ui-monospace, Consolas, monospace; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 999px; background: #1f2a40; color: #9ab; font-size: 11px; }
+</style>
+</head>
+<body>
+  <h1>服务设置 <span id="mode" class="badge">…</span></h1>
+  <div class="sub">这里只管「服务壳」：端口、数据目录、进程与缓存。书源与阅读偏好仍在 Web 设置页。</div>
+
+  <section>
+    <h2>运行状态</h2>
+    <div class="kv">
+      <span class="k">监听地址</span><span class="v" id="v-url">…</span>
+      <span class="k">服务 PID</span><span class="v" id="v-pid">…</span>
+      <span class="k">源库</span><span class="v" id="v-sourcedb">…</span>
+      <span class="k">日志</span><span class="v" id="v-log">…</span>
+      <span class="k">KV</span><span class="v" id="v-kv">…</span>
+    </div>
+    <div class="row">
+      <button id="btn-restart">重启服务</button>
+      <button id="btn-open-dir">打开数据目录</button>
+      <button id="btn-open-log">打开日志文件</button>
+    </div>
+    <div class="msg" id="msg-sys"></div>
+  </section>
+
+  <section>
+    <h2>端口</h2>
+    <div class="row">
+      <input id="port" type="number" min="1024" max="65535" step="1" />
+      <button id="btn-port" class="primary">应用并重启</button>
+    </div>
+    <div class="hint">默认：Web+server 3000 / PC 客户端 3100。改端口会立即重启服务（界面短暂中断几秒）。</div>
+    <div class="warn" id="warn-port" hidden></div>
+    <div class="msg" id="msg-port"></div>
+  </section>
+
+  <section>
+    <h2>数据目录</h2>
+    <div class="row">
+      <input id="datadir" type="text" readonly />
+      <button id="btn-pick-dir">更改…</button>
+    </div>
+    <div class="hint">
+      更改只切换目录，<b>不会复制旧数据</b>：旧目录里的书架 / 进度 / 缓存都留在原处，需要的话请自行迁移。<br />
+      「两端共用同一数据目录」时界面徽标会转红提示 —— 那不是真隔离。
+    </div>
+    <div class="msg" id="msg-dir"></div>
+  </section>
+
+  <section>
+    <h2>音频缓存</h2>
+    <div class="kv">
+      <span class="k">已用 / 配额</span><span class="v" id="v-audio">…</span>
+      <span class="k">条目 / 书</span><span class="v" id="v-audio-items">…</span>
+      <span class="k">目录</span><span class="v" id="v-audio-dir">…</span>
+    </div>
+    <div class="row">
+      <span class="hint">配额（GB，0 = 不限）：</span>
+      <input id="quota" type="number" min="0" max="1024" step="0.5" />
+      <button id="btn-quota">保存配额</button>
+    </div>
+    <div class="row">
+      <button id="btn-prune">清理残留（prune）</button>
+      <button id="btn-orphans">扫描无主缓存</button>
+      <button id="btn-purge" class="danger" disabled>清理无主缓存</button>
+      <button id="btn-clear" class="danger">清空全部音频缓存</button>
+    </div>
+    <div class="orphans" id="orphans" hidden></div>
+    <div class="msg" id="msg-audio"></div>
+  </section>
+
+  <section>
+    <h2>启动与日志</h2>
+    <label class="chk"><input type="checkbox" id="auto-launch" /> 开机自启（默认关）</label>
+    <label class="chk" style="margin-top:10px"><input type="checkbox" id="logs" /> 记录壳级日志（server.log）</label>
+    <div class="hint">日志开关只影响之后写入的日志；关闭后排查崩溃会变难。</div>
+    <div class="msg" id="msg-misc"></div>
+  </section>
+
+  <footer>
+    <button id="btn-close">收进托盘</button>
+  </footer>
+  <div class="hint" style="text-align:right;margin-top:6px">关闭本窗口只收进托盘；真正退出服务请用托盘菜单「退出服务」。</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let lastOrphans = [];
+let cfg = null;
+
+function fmtBytes(n) {
+  const v = Number(n) || 0;
+  if (v < 1024) return v + ' B';
+  if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' KB';
+  if (v < 1024 * 1024 * 1024) return (v / 1024 / 1024).toFixed(1) + ' MB';
+  return (v / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+}
+function say(id, text, isErr) {
+  const el = $(id);
+  el.textContent = text || '';
+  el.classList.toggle('err', !!isErr);
+  if (text) setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 6000);
+}
+function busy(on) {
+  document.querySelectorAll('button').forEach((b) => { b.disabled = !!on; });
+  if (!on) $('btn-purge').disabled = !lastOrphans.length;
+}
+
+function render(c) {
+  cfg = c;
+  $('mode').textContent = c.mode === 'server-only' ? '服务壳 · server-only' : '桌面端';
+  $('v-url').textContent = c.urlBase;
+  $('v-pid').textContent = c.pid == null ? '（未由本壳拉起）' : String(c.pid);
+  $('v-sourcedb').textContent = c.sourceDb;
+  $('v-log').textContent = c.logFile;
+  $('v-kv').textContent = c.kvFile;
+  $('v-audio-dir').textContent = c.audioDir;
+  $('port').value = c.port;
+  $('datadir').value = c.dataDir;
+  $('auto-launch').checked = !!c.autoLaunch;
+  $('logs').checked = c.logsEnabled !== false;
+  $('warn-port').hidden = !c.envPort;
+  if (c.envPort) $('warn-port').textContent = `环境变量 PORT=${c.envPort} 已固定端口，设置页改动不会生效。`;
+}
+
+async function loadAll() {
+  try {
+    render(await window.yueduShell.get());
+    await loadAudio();
+  } catch (e) {
+    say('msg-sys', '读取失败：' + (e && e.message ? e.message : e), true);
+  }
+}
+
+async function loadAudio() {
+  const r = await window.yueduShell.audioStats();
+  const st = r && r.ok ? r.data : null;
+  if (!st) { $('v-audio').textContent = '读取失败'; return; }
+  $('v-audio').textContent = fmtBytes(st.bytes) + ' / ' + (st.maxBytes > 0 ? fmtBytes(st.maxBytes) : '不限');
+  $('v-audio-items').textContent = st.items + ' 条 · ' + st.books + ' 本'
+    + (st.overQuota ? '（已超配额，只淘汰 stream）' : '');
+  $('quota').value = st.maxBytes > 0 ? (st.maxBytes / 1024 / 1024 / 1024).toFixed(2) : 0;
+}
+
+$('btn-restart').onclick = async () => {
+  if (!confirm('重启服务？界面会中断几秒。')) return;
+  busy(true);
+  const r = await window.yueduShell.restart();
+  busy(false);
+  say('msg-sys', r ? '服务已重启' : '重启失败，详见 server.log', !r);
+  if (r) setTimeout(loadAll, 500);
+};
+
+$('btn-open-dir').onclick = async () => {
+  const r = await window.yueduShell.openDataDir();
+  if (!r.ok) say('msg-sys', '打开失败：' + (r.error || ''), true);
+};
+$('btn-open-log').onclick = async () => {
+  const r = await window.yueduShell.openLog();
+  if (!r.ok) say('msg-sys', '打开失败：' + (r.error || ''), true);
+};
+
+$('btn-port').onclick = async () => {
+  const v = Number($('port').value);
+  if (!Number.isInteger(v) || v < 1024 || v > 65535) { say('msg-port', '端口需要 1024~65535 的整数', true); return; }
+  if (cfg && v === cfg.port) { say('msg-port', '端口没有变化'); return; }
+  if (!confirm(`端口改为 ${v} 并立即重启服务？\n\n界面会短暂中断，重启后请用新地址打开：http://127.0.0.1:${v}`)) return;
+  busy(true);
+  const r = await window.yueduShell.setPort(v);
+  busy(false);
+  if (r && r.config) render(r.config);
+  say('msg-port', r && r.ok ? `已切换到 ${v}` : ('失败：' + ((r && r.error) || '未知错误')), !(r && r.ok));
+  if (r && r.ok) loadAudio();
+};
+
+$('btn-pick-dir').onclick = async () => {
+  const picked = await window.yueduShell.pickDataDir();
+  if (!picked || !picked.ok || !picked.path) return;
+  const tip = '切换到这个数据目录？\n\n' + picked.path
+    + '\n\n注意：只切换目录，不复制旧数据。旧目录里的书架 / 进度 / 缓存留在原处。\n切换后服务会立即重启。';
+  if (!confirm(tip)) return;
+  busy(true);
+  const r = await window.yueduShell.setDataDir(picked.path);
+  busy(false);
+  if (r && r.config) render(r.config);
+  say('msg-dir', r && r.ok ? '已切换数据目录' : ('失败：' + ((r && r.error) || '未知错误')), !(r && r.ok));
+  if (r && r.ok) loadAudio();
+};
+
+$('btn-quota').onclick = async () => {
+  const gb = Number($('quota').value);
+  if (!Number.isFinite(gb) || gb < 0) { say('msg-audio', '配额需要 ≥ 0 的数字（0 = 不限）', true); return; }
+  const bytes = Math.round(gb * 1024 * 1024 * 1024);
+  const r = await window.yueduShell.audioSetQuota(bytes);
+  say('msg-audio', r && r.ok ? '配额已保存' : ('失败：' + ((r && r.error) || '未知错误')), !(r && r.ok));
+  await loadAudio();
+};
+
+$('btn-prune').onclick = async () => {
+  busy(true);
+  const r = await window.yueduShell.audioPrune();
+  busy(false);
+  const pruned = r && r.ok && r.data ? r.data.pruned : null;
+  say('msg-audio', r && r.ok ? `已清理残留：临时文件 ${pruned ? pruned.tmpFiles : 0} · 空目录 ${pruned ? pruned.emptyDirs : 0} · 空索引 ${pruned ? pruned.emptyBooks : 0}` : ('失败：' + ((r && r.error) || '未知错误')), !(r && r.ok));
+  await loadAudio();
+};
+
+$('btn-orphans').onclick = async () => {
+  busy(true);
+  const r = await window.yueduShell.audioOrphans();
+  busy(false);
+  if (!r || !r.ok) { say('msg-audio', '扫描失败：' + ((r && r.error) || '未知错误'), true); return; }
+  const t = (r.data && r.data.totals) || { books: 0, items: 0, bytes: 0 };
+  const list = (r.data && r.data.orphans) || [];
+  lastOrphans = list.map((o) => o.bookKey);
+  const box = $('orphans');
+  box.hidden = false;
+  box.textContent = list.length
+    ? list.map((o) => `${o.title || o.bookKey} · ${o.items} 条 · ${fmtBytes(o.bytes)}`).join('\n')
+    : '（没有无主缓存）';
+  $('btn-purge').disabled = !lastOrphans.length;
+  say('msg-audio', `无主缓存：${t.books} 本 / ${t.items} 条 / ${fmtBytes(t.bytes)}`);
+};
+
+$('btn-purge').onclick = async () => {
+  if (!lastOrphans.length) return;
+  if (!confirm(`删除这 ${lastOrphans.length} 本的无主缓存？\n\n只删「书已不在书架」的音频缓存，含手动缓存。`)) return;
+  busy(true);
+  const r = await window.yueduShell.audioPurgeOrphans(lastOrphans);
+  busy(false);
+  lastOrphans = [];
+  $('orphans').hidden = true;
+  say('msg-audio', r && r.ok ? `已清理无主缓存（跳过 ${r.data && r.data.skipped != null ? r.data.skipped : 0} 个已失效项）` : ('失败：' + ((r && r.error) || '未知错误')), !(r && r.ok));
+  busy(false);
+  await loadAudio();
+};
+
+$('btn-clear').onclick = async () => {
+  if (!confirm('清空全部音频缓存？\n\n只删音频缓存，不碰书架 / 进度 / 正文缓存。')) return;
+  busy(true);
+  const r = await window.yueduShell.audioClear();
+  busy(false);
+  say('msg-audio', r && r.ok ? '音频缓存已清空' : ('失败：' + ((r && r.error) || '未知错误')), !(r && r.ok));
+  await loadAudio();
+};
+
+$('auto-launch').onchange = async (e) => {
+  const r = await window.yueduShell.setAutoLaunch(e.target.checked);
+  if (r && r.config) render(r.config);
+  say('msg-misc', r && r.ok ? '开机自启已更新' : ('失败：' + ((r && r.error) || '未知错误')), !(r && r.ok));
+};
+
+$('logs').onchange = async (e) => {
+  const r = await window.yueduShell.setLogs(e.target.checked);
+  if (r && r.config) render(r.config);
+  say('msg-misc', r && r.ok ? '日志开关已保存（下次启动服务时生效）' : ('失败：' + ((r && r.error) || '未知错误')), !(r && r.ok));
+};
+
+$('btn-close').onclick = () => window.yueduShell.close();
+
+loadAll();
+</script>
+</body>
+</html>
